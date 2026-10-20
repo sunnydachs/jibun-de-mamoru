@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>「自分で守る」実行チェック＋漏えい通知の台帳</title>
+<style>
+  :root { --fg:#1a1a1a; --muted:#666; --line:#e2e2e2; --ok:#0a7d3c; --warn:#b45309; --red:#b91c1c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,"Segoe UI","Hiragino Sans",sans-serif; color:var(--fg);
+         line-height:1.7; background:#fafafa; }
+  main { max-width:700px; margin:0 auto; padding:28px 18px 72px; }
+  h1 { font-size:22px; line-height:1.45; margin:0 0 6px; }
+  h2.sec { font-size:17px; margin:34px 0 10px; padding-top:18px; border-top:2px solid var(--fg); }
+  .lead { color:var(--muted); font-size:14px; margin:0 0 20px; }
+  .quote { border-left:3px solid var(--line); padding:2px 0 2px 12px; color:var(--muted);
+           font-size:13.5px; margin:0 0 20px; }
+  .bar { position:sticky; top:0; z-index:2; background:#fafafa; padding:10px 0; border-bottom:1px solid var(--line);
+         display:flex; justify-content:space-between; align-items:baseline; font-size:13px; margin-bottom:16px; }
+  .bar b { font-size:15px; }
+  .item { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:0 0 10px; }
+  .item label { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+  .item input { margin:5px 0 0; width:18px; height:18px; flex:none; }
+  .item h3 { font-size:15.5px; margin:0 0 4px; }
+  .item p { margin:0; font-size:13.5px; color:var(--muted); }
+  .item .src { font-size:12.5px; margin-top:6px; }
+  .item:has(input:checked) { border-color:var(--ok); background:#f4fbf6; }
+  .item:has(input:checked) h3 { color:var(--ok); }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:0 0 12px; }
+  .card h3 { font-size:15.5px; margin:0 0 2px; }
+  .meta { font-size:12.5px; color:var(--muted); }
+  .task { display:flex; gap:8px; align-items:flex-start; font-size:13.5px; padding:6px 0; border-top:1px dashed var(--line); }
+  .task input { margin:4px 0 0; width:16px; height:16px; flex:none; }
+  .due { font-size:12px; border-radius:4px; padding:1px 6px; flex:none; margin-left:auto; white-space:nowrap; }
+  .due.today { background:#fee2e2; color:var(--red); }
+  .due.week  { background:#fef3c7; color:var(--warn); }
+  .due.later { background:#eef2ff; color:#3730a3; }
+  .done { color:var(--muted); text-decoration:line-through; }
+  label.fld { display:block; font-size:12.5px; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=date] { width:100%; padding:8px 10px; font-size:14px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .checks { display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; margin-top:6px; }
+  .checks label { font-size:13.5px; display:flex; gap:7px; align-items:center; }
+  .checks input { width:16px; height:16px; flex:none; }
+  button.act { font:inherit; font-size:13.5px; padding:9px 14px; border-radius:8px; border:1px solid var(--fg);
+               background:var(--fg); color:#fff; cursor:pointer; margin:14px 8px 0 0; }
+  button.act.ghost { background:#fff; color:var(--fg); }
+  .note { font-size:12.5px; color:var(--muted); margin-top:22px; border-top:1px solid var(--line); padding-top:14px; }
+  a { color:#0b57d0; }
+  .empty { font-size:13.5px; color:var(--muted); }
+  #copyarea { width:100%; height:120px; margin-top:8px; font-size:12.5px; display:none; }
+  .reset { background:none; border:none; color:var(--muted); font-size:12.5px; text-decoration:underline; cursor:pointer; padding:0; }
+  @media (max-width:480px){ .checks { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>「自分で守る」実行チェック</h1>
+  <p class="lead">政府が呼びかけた対策を、個人が今日やれる手順に落としました。あわせて、<b>届いた漏えい通知を記録して、期限つきの手順に変える台帳</b>が付いています。<b>すべて端末内で完結</b>し、入力内容はどこにも送信しません。</p>
+  <blockquote class="quote">
+    「自分の情報は自分で守るという意識を持って、被害防止に向けた取り組みに協力してほしい」<br>
+    ——古川俊治デジタル相（2026年10月6日 記者会見）。示された3つは<a href="https://www.npa.go.jp/bureau/cyber/countermeasures/index.html" target="_blank" rel="noopener">パスワードの使い回しをやめる／多要素認証を使う／不審なメール・SNSに注意する</a>。<br>
+    「企業が守れないのに個人で守れるのか」という批判も出ています。<b>漏らすのは企業側です。</b>個人にできるのは「漏れても広がらない状態」を先に作ることだけ。<b>1つやれば十分</b>です。
+  </blockquote>
+
+  <div class="bar">
+    <span><b id="count">0</b> / 5 実行済み</span>
+    <button class="reset" id="reset" type="button">チェックを消す</button>
+  </div>
+  <div id="items"></div>
+
+  <h2 class="sec">漏えい通知の台帳</h2>
+  <p class="lead">通知が届いたら、<b>通知元・通知日・漏れた情報</b>を記録してください。やることと期限が自動で並びます。同じ内容を何件でも残せます（2件目・3件目の通知も重ねて見られます）。</p>
+
+  <div class="card">
+    <label class="fld" for="src">通知元（企業名など・任意）</label>
+    <input type="text" id="src" placeholder="例: タイムズカー">
+    <label class="fld" for="notified">通知を受け取った日</label>
+    <input type="date" id="notified">
+    <label class="fld">漏れた（漏れたおそれがある）情報 ※通知や公式発表に書かれた項目を選ぶ</label>
+    <div class="checks" id="kinds"></div>
+    <button class="act" id="add" type="button">この通知を記録する</button>
+  </div>
+
+  <div id="cases"></div>
+  <div id="ledgerTools" style="display:none">
+    <button class="act ghost" id="copy" type="button">記録をテキストで控える</button>
+    <button class="act ghost" id="clear" type="button">台帳を全部消す</button>
+    <textarea id="copyarea" readonly></textarea>
+  </div>
+
+  <p class="note">
+    <b>このページの限界（正直に書きます）</b><br>
+    ・防御や被害の防止を保証するものではありません。企業側の漏えいは個人では防げません。掲載する手順は公的機関の一般的な注意喚起で、個別の状況に対する法的・技術的な判断ではありません。<br>
+    ・入力・記録はお使いの端末（ブラウザ内）にのみ保存され、外部に送信されません。端末を変えると消えます。ブラウザのデータ削除でも消えます。<br>
+    ・公的資料（警察庁・個人情報保護委員会・国民生活センター等）と各サービス公式ページを根拠にしていますが、仕様変更で手順は古くなります。<br>
+    ・実際の被害は警察のサイバー相談窓口へ。契約・請求の消費者トラブルは消費者ホットライン188へ。
+  </p>
+</main>
+
+<script>
+/* ---------- 実行チェック（政府の呼びかけ＋AI＋通知対応） ---------- */
+const ITEMS = [
+  { id:"pw", title:"同じパスワードを使っているサービスを1つ減らす",
+    body:"使い回しは「1社漏れたら全部漏れる」構造。全部変えなくていい。まず銀行・メール・SNSのどれか1つを、他と違う長いパスワードに。連鎖が1本切れます。",
+    src:["警察庁 サイバーセキュリティ対策","https://www.npa.go.jp/bureau/cyber/countermeasures/index.html"] },
+  { id:"mfa", title:"いま使っているメールとSNSで多要素認証をオンにする",
+    body:"盗まれたID・パスワードで侵入されるのが国内被害の主流。認証アプリ（またはパスキー）で、まずメール1つだけ有効に。SMS認証より認証アプリのほうが強いとされています。",
+    src:["警察庁 不正アクセス対策","https://www.npa.go.jp/bureau/cyber/countermeasures/index.html"] },
+  { id:"phish", title:"「リンクを踏まない」を1つ決めておく",
+    body:"漏えい後に増えるのは宅配・銀行・カード・漏えい元企業を装ったSMS/メール。「料金・確認・再設定・補償」で急がせる文面は開かない。公式アプリか、自分で検索して開いたページだけを使う。",
+    src:["フィッシング対策協議会","https://www.antiphishing.jp/"] },
+  { id:"ai", title:"AI（ChatGPT・Claude・Copilot）に学習させない設定を入れる",
+    body:"仕事でも私用でも使い始めた人ほど抜けるところ。各サービスは学習に使わせない設定を持っています（無料版でも可能なものが多い）。あわせて「貼らない情報」を決める：氏名＋住所のセット、顧客・取引先の情報、社内文書、契約書、認証情報、本人確認書類の画像。",
+    src:["各サービスの学習利用設定の比較（参考）","https://ainformation.jp/ai-gakusho-off"] },
+  { id:"notice", title:"漏えいのお知らせが来たら「種類」で動きを決める",
+    body:"パスワード＝その日のうちに変更（使い回し先も／数時間で試されます）／カード＝明細とカード会社、補償は60日ルール／口座・暗証番号＝すぐ連絡／メール・住所・電話だけ＝警戒モードで十分（変更は不要）／免許証画像＝信用情報機関の本人申告制度で名義の悪用防止を登録できる場合があります。詳しくは下の台帳へ。",
+    src:["個人情報保護委員会 漏えい等の対応","https://www.ppc.go.jp/personalinfo/legal/leakAction/"] },
+];
+
+const KIND_OPTIONS = [
+  { id:"pw",      label:"パスワード" },
+  { id:"email",   label:"メールアドレス" },
+  { id:"addr",    label:"氏名・住所・電話番号" },
+  { id:"card",    label:"クレジットカード情報" },
+  { id:"bank",    label:"口座番号・暗証番号まわり" },
+  { id:"license", label:"運転免許証などの本人確認書類の画像" },
+];
+
+/* 手順: days = 通知日からの目安（0=今日中 / 7=1週間 / 14 / 30） */
+const STEPS = {
+  common: [
+    { t:"通知のリンクは踏まず、公式サイトを自分で開いて発表内容を確認する（公式に無ければ偽物）", days:0, src:"警察庁 フィッシング対策" },
+    { t:"何が・いつ・どこから漏れたかを公式発表で確認して、この台帳に記録する", days:0 }
+  ],
+  pw: [
+    { t:"そのサービスのパスワードを変更する（最優先）", days:0 },
+    { t:"同じパスワードを使い回している全サービスも変更する", days:0, src:"警察庁" },
+    { t:"変更したサービスで多要素認証をオンにする", days:7 }
+  ],
+  email: [
+    { t:"いつもと違う差出人・文面のメール/SMSが増える前提で、リンクを開かない運用にする", days:7 },
+    { t:"アカウントのログイン履歴に身に覚えのない記録がないか確認する", days:7 }
+  ],
+  addr: [
+    { t:"「銀行・宅配・役所を名乗る電話/SMS」の警戒レベルを上げる（漏えい後1〜2か月が特に危ない）", days:0 },
+    { t:"本人確認を求められたら、自分で検索した公式番号にかけ直す", days:7 },
+    { t:"メールアドレス・電話番号の変更は不要（コストに見合わない）", days:30 }
+  ],
+  card: [
+    { t:"利用明細（直近2か月）に身に覚えのない請求がないか確認する", days:0 },
+    { t:"カード会社の不正利用連絡窓口を控える／必要なら停止・再発行を相談する", days:0 },
+    { t:"補償は申告の早さが効く（目安60日）ので、怪しい請求は早めに連絡する", days:7 }
+  ],
+  bank: [
+    { t:"ネットバンキングのパスワードを変更し、身に覚えのない出金がないか確認する", days:0 },
+    { t:"銀行を名乗る電話・SMSへの警戒を最大にする（ボイスフィッシングの主材料になる）", days:0 },
+    { t:"必要なら取引店に連絡して、口座の監視強化を相談する", days:7 }
+  ],
+  license: [
+    { t:"信用情報機関の「本人申告制度」で名義の悪用防止を登録できるか確認する（JICC・全国銀行個人信用情報センター等）", days:14, src:"JICC 不正利用防止の届け出" },
+    { t:"CIC・JICC・全国銀行個人信用情報センターの開示で、身に覚えのない契約が登録されていないか確認する", days:30 },
+    { t:"免許証を再交付しても番号の上11桁は変わらない点に注意（再交付＝解決ではありません）", days:14 },
+    { t:"クレジット・ローン・携帯の契約は、本人確認が厳しい手続きに寄せる（マイナンバーカード等）", days:30 }
+  ]
+};
+const KIND_LABEL = Object.fromEntries(KIND_OPTIONS.map(k => [k.id, k.label]));
+
+/* ---------- 実行チェックの状態 ---------- */
+const KEY = "jibun-mamoru-v1"; // gitleaks:allow - localStorage key name, not a credential
+const state = (() => {
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "{}"); return Object.fromEntries(ITEMS.map(i => [i.id, s[i.id] === true])); }
+  catch { return Object.fromEntries(ITEMS.map(i => [i.id, false])); }
+})();
+const wrap = document.getElementById("items"), countEl = document.getElementById("count");
+
+function render() {
+  wrap.innerHTML = "";
+  for (const it of ITEMS) {
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `<label>
+      <input type="checkbox" data-id="${it.id}" ${state[it.id] ? "checked" : ""}>
+      <span><h3>${it.title}</h3><p>${it.body}</p>
+      <span class="src"><a href="${it.src[1]}" target="_blank" rel="noopener">${it.src[0]}</a></span></span></label>`;
+    wrap.appendChild(div);
+  }
+  wrap.querySelectorAll("input[type=checkbox]").forEach(cb => cb.addEventListener("change", () => {
+    state[cb.dataset.id] = cb.checked;
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+    updateCount();
+  }));
+  updateCount();
+}
+function updateCount() { countEl.textContent = ITEMS.filter(i => state[i.id]).length; }
+document.getElementById("reset").addEventListener("click", () => {
+  for (const i of ITEMS) state[i.id] = false;
+  try { localStorage.removeItem(KEY); } catch {}
+  render();
+});
+
+/* ---------- 漏えい通知の台帳 ---------- */
+const LKEY = "jibun-ledger-v1"; // gitleaks:allow - localStorage key name, not a credential
+const load = () => { try { return JSON.parse(localStorage.getItem(LKEY) || "[]"); } catch { return []; } };
+const save = d => { try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch {} };
+let cases = load();
+
+const today = () => new Date(new Date().toDateString());
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const fmt = d => `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getDate()).padStart(2,"0")}`;
+const daysLeft = d => Math.round((d - today()) / 86400000);
+const CLASS = { 0:"today", 7:"week", 14:"week", 30:"later" };
+
+function kindChecks() {
+  document.getElementById("kinds").innerHTML = KIND_OPTIONS.map(k =>
+    `<label><input type="checkbox" value="${k.id}"> ${k.label}</label>`).join("");
+}
+
+function stepsFor(kinds) {
+  const out = [...STEPS.common];
+  const seen = new Set(out.map(s => s.t));
+  for (const k of kinds) for (const s of (STEPS[k] || [])) if (!seen.has(s.t)) { seen.add(s.t); out.push(s); }
+  return out.sort((a, b) => a.days - b.days);
+}
+
+function renderCases() {
+  const box = document.getElementById("cases");
+  document.getElementById("ledgerTools").style.display = cases.length ? "" : "none";
+  if (!cases.length) { box.innerHTML = `<p class="empty">まだ記録はありません。</p>`; return; }
+  box.innerHTML = "";
+  for (const c of cases.slice().sort((a, b) => (a.notified < b.notified ? 1 : -1))) {
+    const base = new Date(c.notified);
+    const el = document.createElement("div");
+    el.className = "card";
+    let html = `<h3>${c.src ? c.src : "通知元未記入"}</h3>
+      <div class="meta">通知日 ${fmt(base)}／対象: ${c.kinds.map(k => KIND_LABEL[k]).join("・") || "（種類未選択）"}</div>`;
+    for (const [i, s] of c.tasks.entries()) {
+      const due = addDays(base, s.days), left = daysLeft(due);
+      const label = left < 0 ? `期限切れ（${fmt(due)}）` : left === 0 ? "今日中" : `あと${left}日（${fmt(due)}）`;
+      html += `<div class="task">
+        <input type="checkbox" data-c="${c.id}" data-i="${i}" ${s.done ? "checked" : ""}>
+        <span class="${s.done ? "done" : ""}">${s.t}</span>
+        <span class="due ${CLASS[s.days] || "later"}">${label}</span></div>`;
+    }
+    html += `<div class="meta" style="margin-top:8px">対応した項目は日付つきで記録されます。控えはテキストにできます（後で確認・申告に使えます）。</div>
+      <button class="act ghost" data-del="${c.id}" type="button">この記録を削除</button>`;
+    el.innerHTML = html;
+    box.appendChild(el);
+  }
+  box.querySelectorAll("input[type=checkbox][data-c]").forEach(cb => cb.addEventListener("change", () => {
+    const c = cases.find(x => x.id === cb.dataset.c), t = c.tasks[+cb.dataset.i];
+    t.done = cb.checked; t.doneAt = cb.checked ? new Date().toISOString().slice(0, 10) : null;
+    save(cases); renderCases();
+  }));
+  box.querySelectorAll("button[data-del]").forEach(b => b.addEventListener("click", () => {
+    cases = cases.filter(x => x.id !== b.dataset.del); save(cases); renderCases();
+  }));
+}
+
+document.getElementById("add").addEventListener("click", () => {
+  const kinds = [...document.querySelectorAll("#kinds input:checked")].map(i => i.value);
+  if (!kinds.length) { alert("漏れた情報を1つ以上選んでください。通知が手元に無い場合は、上の「自分で守る」チェックを1つやれば十分です。"); return; }
+  const nd = document.getElementById("notified").value;
+  const notified = nd ? new Date(nd) : today();
+  cases.push({
+    id: String(Date.now()),
+    src: document.getElementById("src").value.trim(),
+    notified: notified.toISOString().slice(0, 10),
+    kinds,
+    tasks: stepsFor(kinds).map(s => ({ t:s.t, days:s.days, src:s.src || null, done:false, doneAt:null }))
+  });
+  save(cases);
+  document.getElementById("src").value = "";
+  document.querySelectorAll("#kinds input").forEach(i => i.checked = false);
+  renderCases();
+});
+
+document.getElementById("copy").addEventListener("click", () => {
+  const lines = ["【漏えい通知の記録】"];
+  for (const c of cases) {
+    lines.push("", `${c.src || "通知元未記入"} / 通知日 ${fmt(new Date(c.notified))} / 対象: ${c.kinds.map(k => KIND_LABEL[k]).join("・")}`);
+    for (const s of c.tasks) lines.push(`  [${s.done ? "対応済 " + (s.doneAt || "") : "未対応"}] ${s.t}（目安: 通知日+${s.days}日）`);
+  }
+  lines.push("", "※個人の端末で作成した記録です。公的機関の一般的な注意喚起に基づく目安で、法的判断ではありません。");
+  const ta = document.getElementById("copyarea");
+  ta.style.display = "block"; ta.value = lines.join("\n"); ta.select();
+  try { document.execCommand("copy"); } catch {}
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  if (!confirm("台帳の記録を全部消します。よろしいですか？")) return;
+  cases = []; save(cases); renderCases();
+});
+
+/* ---------- 起動 ---------- */
+kindChecks();
+render();
+renderCases();
+document.getElementById("notified").value = today().toISOString().slice(0, 10);
+</script>
+</body>
+</html>
