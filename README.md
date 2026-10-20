@@ -10,9 +10,9 @@ arrives.
 
 ## What it is
 
-After Japan's Digital Minister told citizens to "protect your own
-information" (Oct 6, 2026), the public reaction was: *companies leak, so what
-can an individual actually do?* This page is our answer, in two parts:
+After a government call for citizens to "protect your own information,"
+the public reaction was: *companies leak, so what can an individual actually
+do?* This page is our answer, in two parts:
 
 1. **「自分で守る」実行チェック** — the government's three measures (stop
    password reuse, enable MFA, don't tap suspicious links) plus AI-service
