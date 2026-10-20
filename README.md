@@ -1,5 +1,7 @@
 # jibun-de-mamoru （自分で守る）
 
+English | [日本語](README.ja.md)
+
 A one-page, client-side companion for people who just received a personal-data
 leak notification in Japan — and for anyone who wants to prepare before one
 arrives.
@@ -41,6 +43,12 @@ third notifications added. This page keeps exactly that, and nothing else.
 - Procedures age: official pages change, and Japan's 2027 payment-services
   amendments (犯収法) will move some of this. Check the linked sources.
 - Real damage: Japan's cybercrime consultation window; consumer trouble: 188.
+
+## Languages
+
+The page is Japanese by default (the primary audience is people in Japan
+receiving leak notices) with an English toggle in the top bar; the choice
+persists on the device. The cited authority pages are Japanese.
 
 ## Repository layout
 
