@@ -46,9 +46,10 @@ third notifications added. This page keeps exactly that, and nothing else.
 
 ## Languages
 
-The page is Japanese by default (the primary audience is people in Japan
-receiving leak notices) with an English toggle in the top bar; the choice
-persists on the device. The cited authority pages are Japanese.
+The page opens in the visitor's language (auto-detected: Japanese for
+ja browsers, English otherwise — dev.to readers land in English), with a
+toggle in the top bar; the choice persists on the device. The cited
+authority pages are Japanese.
 
 ## Repository layout
 

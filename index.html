@@ -98,7 +98,10 @@
 /* gitleaks:allow - localStorage key name, not a credential */
 const LKEY_LANG = "jibun-lang-v1";
 let LANG = "ja";
-try { const v = localStorage.getItem(LKEY_LANG); if (v === "ja" || v === "en") LANG = v; } catch {}
+try { const v = localStorage.getItem(LKEY_LANG);
+      if (v === "ja" || v === "en") LANG = v;                 /* saved choice wins */
+      else LANG = (navigator.language || "ja").toLowerCase().startsWith("ja") ? "ja" : "en";
+} catch {}
 const saveLang = () => { try { localStorage.setItem(LKEY_LANG, LANG); } catch {} };
 const tx = o => (o && typeof o === "object" && !(o instanceof Date)) ? o[LANG] : o;
 
