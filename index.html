@@ -58,7 +58,7 @@
   <p class="lead">政府が呼びかけた対策を、個人が今日やれる手順に落としました。あわせて、<b>届いた漏えい通知を記録して、期限つきの手順に変える台帳</b>が付いています。<b>すべて端末内で完結</b>し、入力内容はどこにも送信しません。</p>
   <blockquote class="quote">
     「自分の情報は自分で守るという意識を持って、被害防止に向けた取り組みに協力してほしい」<br>
-    ——古川俊治デジタル相（2026年10月6日 記者会見）。示された3つは<a href="https://www.npa.go.jp/bureau/cyber/countermeasures/index.html" target="_blank" rel="noopener">パスワードの使い回しをやめる／多要素認証を使う／不審なメール・SNSに注意する</a>。<br>
+    ——古川俊治デジタル相（2026年10月6日 記者会見）。示された3つは<a href="https://www.npa.go.jp/bureau/cyber/countermeasures/basic.html" target="_blank" rel="noopener">パスワードの使い回しをやめる／多要素認証を使う／不審なメール・SNSに注意する</a>。<br>
     「企業が守れないのに個人で守れるのか」という批判も出ています。<b>漏らすのは企業側です。</b>個人にできるのは「漏れても広がらない状態」を先に作ることだけ。<b>1つやれば十分</b>です。
   </blockquote>
 
@@ -73,7 +73,7 @@
 
   <div class="card">
     <label class="fld" for="src">通知元（企業名など・任意）</label>
-    <input type="text" id="src" placeholder="例: タイムズカー">
+    <input type="text" id="src" placeholder="例: 通知元のサービス名">
     <label class="fld" for="notified">通知を受け取った日</label>
     <input type="date" id="notified">
     <label class="fld">漏れた（漏れたおそれがある）情報 ※通知や公式発表に書かれた項目を選ぶ</label>
@@ -102,16 +102,16 @@
 const ITEMS = [
   { id:"pw", title:"同じパスワードを使っているサービスを1つ減らす",
     body:"使い回しは「1社漏れたら全部漏れる」構造。全部変えなくていい。まず銀行・メール・SNSのどれか1つを、他と違う長いパスワードに。連鎖が1本切れます。",
-    src:["警察庁 サイバーセキュリティ対策","https://www.npa.go.jp/bureau/cyber/countermeasures/index.html"] },
+    src:["警察庁 基本的なセキュリティ対策","https://www.npa.go.jp/bureau/cyber/countermeasures/basic.html"] },
   { id:"mfa", title:"いま使っているメールとSNSで多要素認証をオンにする",
     body:"盗まれたID・パスワードで侵入されるのが国内被害の主流。認証アプリ（またはパスキー）で、まずメール1つだけ有効に。SMS認証より認証アプリのほうが強いとされています。",
-    src:["警察庁 不正アクセス対策","https://www.npa.go.jp/bureau/cyber/countermeasures/index.html"] },
+    src:["警察庁 不正アクセス対策","https://www.npa.go.jp/bureau/cyber/countermeasures/unauthorized-access.html"] },
   { id:"phish", title:"「リンクを踏まない」を1つ決めておく",
     body:"漏えい後に増えるのは宅配・銀行・カード・漏えい元企業を装ったSMS/メール。「料金・確認・再設定・補償」で急がせる文面は開かない。公式アプリか、自分で検索して開いたページだけを使う。",
     src:["フィッシング対策協議会","https://www.antiphishing.jp/"] },
   { id:"ai", title:"AI（ChatGPT・Claude・Copilot）に学習させない設定を入れる",
     body:"仕事でも私用でも使い始めた人ほど抜けるところ。各サービスは学習に使わせない設定を持っています（無料版でも可能なものが多い）。あわせて「貼らない情報」を決める：氏名＋住所のセット、顧客・取引先の情報、社内文書、契約書、認証情報、本人確認書類の画像。",
-    src:["各サービスの学習利用設定の比較（参考）","https://ainformation.jp/ai-gakusho-off"] },
+    src:["個人情報保護委員会 生成AIサービスの利用に関する注意喚起","https://www.ppc.go.jp/files/pdf/230602_alert_generative_AI_service.pdf"] },
   { id:"notice", title:"漏えいのお知らせが来たら「種類」で動きを決める",
     body:"パスワード＝その日のうちに変更（使い回し先も／数時間で試されます）／カード＝明細とカード会社、補償は60日ルール／口座・暗証番号＝すぐ連絡／メール・住所・電話だけ＝警戒モードで十分（変更は不要）／免許証画像＝信用情報機関の本人申告制度で名義の悪用防止を登録できる場合があります。詳しくは下の台帳へ。",
     src:["個人情報保護委員会 漏えい等の対応","https://www.ppc.go.jp/personalinfo/legal/leakAction/"] },
