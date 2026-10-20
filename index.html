@@ -38,6 +38,12 @@
   .due.today { background:#fee2e2; color:var(--red); }
   .due.week  { background:#fef3c7; color:var(--warn); }
   .due.later { background:#eef2ff; color:#3730a3; }
+  .due.done  { background:#dcfce7; color:var(--ok); }
+  .chead { cursor:pointer; }
+  .chead .tri { display:inline-block; width:14px; color:var(--muted); font-size:12px; }
+  .sum { font-size:12px; margin-top:4px; }
+  .sum .s-now { color:var(--red); } .sum .s-week { color:var(--warn); }
+  .sum .s-month { color:#3730a3; } .sum .s-done { color:var(--ok); }
   .done { color:var(--muted); text-decoration:line-through; }
   label.fld { display:block; font-size:12.5px; color:var(--muted); margin:10px 0 4px; }
   input[type=text], input[type=date] { width:100%; padding:8px 10px; font-size:14px; border:1px solid var(--line); border-radius:8px; background:#fff; }
@@ -135,8 +141,14 @@ const T = {
   kindsNone: { ja: "（種類未選択）", en: "(no type selected)" },
   notifDate: { ja: "通知日", en: "Notified on" },
   types: { ja: "対象: ", en: "Types: " },
-  overdue: { ja: d => `期限切れ（${d}）`, en: d => `Overdue (${d})` },
-  todayDue: { ja: "今日中", en: "Due today" },
+  nowDue: { ja: d => `今すぐ（期限 ${d}）`, en: d => `Do now (due ${d})` },
+  todayDue: { ja: d => `今日中（${d}）`, en: d => `Due today (${d})` },
+  doneBadge: { ja: d => `済（${d}対応）`, en: d => `Done (${d})` },
+  donePlain: { ja: "済", en: "Done" },
+  sumNow: { ja: "今すぐ", en: "Now" },
+  sumWeek: { ja: "1週間", en: "1 week" },
+  sumMonth: { ja: "30日", en: "30 days" },
+  sumDone: { ja: "済", en: "done" },
   daysLeft: { ja: (n, d) => `あと${n}日（${d}）`, en: (n, d) => `${n} days left (${d})` },
   doneMark: { ja: d => `対応済 ${d}`, en: d => `done ${d}` },
   pendingMark: { ja: "未対応", en: "pending" },
@@ -321,31 +333,74 @@ function stepsFor(kinds) {
   return out.sort((a, b) => a.days - b.days);
 }
 
+const expanded = new Set();
+
+function bucketCounts(c) {
+  const u = { now: 0, week: 0, month: 0 };
+  let done = 0, minOpen = null;
+  for (const s of c.tasks) {
+    if (s.done) { done++; continue; }
+    if (s.days === 0) u.now++;
+    else if (s.days <= 7) u.week++;
+    else u.month++;
+    const d = addDays(new Date(c.notified), s.days);
+    if (!minOpen || d < minOpen) minOpen = d;
+  }
+  return { u, done, total: c.tasks.length, minOpen };
+}
+
+function summaryHtml(c, s) {
+  const parts = [];
+  if (s.u.now) parts.push(`<span class="s-now">${tx(T.sumNow)} ${s.u.now}</span>`);
+  if (s.u.week) parts.push(`<span class="s-week">${tx(T.sumWeek)} ${s.u.week}</span>`);
+  if (s.u.month) parts.push(`<span class="s-month">${tx(T.sumMonth)} ${s.u.month}</span>`);
+  parts.push(`<span class="s-done">${tx(T.sumDone)} ${s.done}/${s.total}</span>`);
+  return parts.join(" ／ ");
+}
+
 function renderCases() {
   const box = document.getElementById("cases");
   document.getElementById("ledgerTools").style.display = cases.length ? "" : "none";
   if (!cases.length) { box.innerHTML = `<p class="empty">${tx(T.empty)}</p>`; return; }
+  const withMeta = cases.map(c => ({ c, s: bucketCounts(c) }));
+  withMeta.sort((a, b) => {
+    if (a.s.minOpen && b.s.minOpen) return a.s.minOpen < b.s.minOpen ? -1 : 1;
+    if (a.s.minOpen) return -1;
+    if (b.s.minOpen) return 1;
+    return a.c.notified < b.c.notified ? 1 : -1;   /* both fully done: newest first */
+  });
   box.innerHTML = "";
-  for (const c of cases.slice().sort((a, b) => (a.notified < b.notified ? 1 : -1))) {
+  for (const { c, s } of withMeta) {
     const base = new Date(c.notified);
     const el = document.createElement("div");
     el.className = "card";
+    const open = expanded.has(c.id);
     const kinds = c.kinds.map(k => (KIND_LABEL[k] || {})[LANG] || k).join("・");
-    let html = `<h3>${c.src ? c.src : tx(T.noSrc)}</h3>
-      <div class="meta">${tx(T.notifDate)} ${fmt(base)}／${tx(T.types)}${kinds || tx(T.kindsNone)}</div>`;
-    for (const [i, s] of c.tasks.entries()) {
-      const due = addDays(base, s.days), left = daysLeft(due);
-      const label = left < 0 ? tx(T.overdue)(fmt(due)) : left === 0 ? tx(T.todayDue) : tx(T.daysLeft)(left, fmt(due));
+    let html = `<div class="chead" data-c="${c.id}">
+      <span class="tri">${open ? "▾" : "▸"}</span><b>${c.src ? c.src : tx(T.noSrc)}</b>
+      <span class="meta">　${tx(T.notifDate)} ${fmt(base)}／${kinds || tx(T.kindsNone)}</span>
+      <div class="sum">${summaryHtml(c, s)}</div></div>
+      <div class="cbody" style="${open ? "" : "display:none"}">`;
+    for (const [i, s2] of c.tasks.entries()) {
+      const due = addDays(base, s2.days), left = daysLeft(due);
+      const label = s2.done
+        ? (s2.doneAt ? tx(T.doneBadge)(s2.doneAt) : tx(T.donePlain))
+        : left < 0 ? tx(T.nowDue)(fmt(due)) : left === 0 ? tx(T.todayDue)(fmt(due)) : tx(T.daysLeft)(left, fmt(due));
       html += `<div class="task">
-        <input type="checkbox" data-c="${c.id}" data-i="${i}" ${s.done ? "checked" : ""}>
-        <span class="${s.done ? "done" : ""}">${stepText(s)}</span>
-        <span class="due ${CLASS[s.days] || "later"}">${label}</span></div>`;
+        <input type="checkbox" data-c="${c.id}" data-i="${i}" ${s2.done ? "checked" : ""}>
+        <span class="${s2.done ? "done" : ""}">${stepText(s2)}</span>
+        <span class="due ${s2.done ? "done" : CLASS[s2.days] || "later"}">${label}</span></div>`;
     }
     html += `<div class="meta" style="margin-top:8px">${tx(T.metaLine)}</div>
-      <button class="act ghost" data-del="${c.id}" type="button">${tx(T.delCase)}</button>`;
+      <button class="act ghost" data-del="${c.id}" type="button">${tx(T.delCase)}</button></div>`;
     el.innerHTML = html;
     box.appendChild(el);
   }
+  box.querySelectorAll(".chead").forEach(h => h.addEventListener("click", () => {
+    const id = h.dataset.c;
+    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+    renderCases();
+  }));
   box.querySelectorAll("input[type=checkbox][data-c]").forEach(cb => cb.addEventListener("change", () => {
     const c = cases.find(x => x.id === cb.dataset.c), t = c.tasks[+cb.dataset.i];
     t.done = cb.checked; t.doneAt = cb.checked ? new Date().toISOString().slice(0, 10) : null;
@@ -382,8 +437,10 @@ document.getElementById("add").addEventListener("click", () => {
   if (!kinds.length) { alert(tx(T.alertNone)); return; }
   const nd = document.getElementById("notified").value;
   const notified = nd ? new Date(nd) : today();
+  const id = String(Date.now());
+  expanded.add(id);
   cases.push({
-    id: String(Date.now()),
+    id,
     src: document.getElementById("src").value.trim(),
     notified: notified.toISOString().slice(0, 10),
     kinds,
